@@ -1,0 +1,205 @@
+'use client'
+
+import { useState } from 'react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseEther } from 'viem'
+
+// Contract ABI - you would import this from your compiled contract
+const VESTING_ABI = [
+  {
+    "inputs": [
+      {"name": "beneficiary", "type": "address"},
+      {"name": "sourceCollection", "type": "address"},
+      {"name": "templateId", "type": "uint256"},
+      {"name": "tokenIds", "type": "uint256[]"},
+      {"name": "permits", "type": "tuple[]"}
+    ],
+    "name": "createLinearPlan",
+    "outputs": [{"name": "positionId", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"name": "beneficiary", "type": "address"},
+      {"name": "sourceCollection", "type": "address"},
+      {"name": "tokenIds", "type": "uint256[]"},
+      {"name": "trancheSchedule", "type": "tuple[]"},
+      {"name": "permits", "type": "tuple[]"}
+    ],
+    "name": "createTranchePlan",
+    "outputs": [{"name": "positionId", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"name": "positionId", "type": "uint256"},
+      {"name": "to", "type": "address"},
+      {"name": "tokenIds", "type": "uint256[]"}
+    ],
+    "name": "claim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "positionId", "type": "uint256"}],
+    "name": "getPlan",
+    "outputs": [
+      {
+        "name": "plan",
+        "type": "tuple",
+        "components": [
+          {"name": "sourceCollection", "type": "address"},
+          {"name": "beneficiary", "type": "address"},
+          {"name": "issuer", "type": "address"},
+          {"name": "startTime", "type": "uint256"},
+          {"name": "totalCount", "type": "uint256"},
+          {"name": "claimedCount", "type": "uint256"},
+          {"name": "isLinear", "type": "bool"},
+          {"name": "revoked", "type": "bool"},
+          {"name": "revokeTime", "type": "uint256"},
+          {"name": "vestedCapOnRevoke", "type": "uint256"}
+        ]
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "positionId", "type": "uint256"}],
+    "name": "claimableCount",
+    "outputs": [{"name": "count", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const
+
+// Contract address - you would set this based on your deployment
+const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0x...'
+
+interface PermitInput {
+  tokenId: number
+  deadline: number
+  signature: string
+  usePermit: boolean
+}
+
+interface Tranche {
+  timestamp: number
+  count: number
+}
+
+interface CreateLinearPlanParams {
+  beneficiary: string
+  sourceCollection: string
+  templateId: number
+  tokenIds: number[]
+  permits: PermitInput[]
+}
+
+interface CreateTranchePlanParams {
+  beneficiary: string
+  sourceCollection: string
+  tokenIds: number[]
+  trancheSchedule: Tranche[]
+  permits: PermitInput[]
+}
+
+export function useVestingContract() {
+  const { address } = useAccount()
+  const [isLoading, setIsLoading] = useState(false)
+
+  const { writeContract, data: hash, error, isPending } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  const createLinearPlan = async (params: CreateLinearPlanParams) => {
+    if (!address) throw new Error('Wallet not connected')
+
+    setIsLoading(true)
+    try {
+      await writeContract({
+        address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
+        abi: VESTING_ABI,
+        functionName: 'createLinearPlan',
+        args: [
+          params.beneficiary as `0x${string}`,
+          params.sourceCollection as `0x${string}`,
+          BigInt(params.templateId),
+          params.tokenIds.map(id => BigInt(id)),
+          params.permits.map(permit => ({
+            tokenId: BigInt(permit.tokenId),
+            deadline: BigInt(permit.deadline),
+            signature: permit.signature as `0x${string}`,
+            usePermit: permit.usePermit
+          }))
+        ]
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const createTranchePlan = async (params: CreateTranchePlanParams) => {
+    if (!address) throw new Error('Wallet not connected')
+
+    setIsLoading(true)
+    try {
+      await writeContract({
+        address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
+        abi: VESTING_ABI,
+        functionName: 'createTranchePlan',
+        args: [
+          params.beneficiary as `0x${string}`,
+          params.sourceCollection as `0x${string}`,
+          params.tokenIds.map(id => BigInt(id)),
+          params.trancheSchedule.map(tranche => ({
+            timestamp: BigInt(tranche.timestamp),
+            count: BigInt(tranche.count)
+          })),
+          params.permits.map(permit => ({
+            tokenId: BigInt(permit.tokenId),
+            deadline: BigInt(permit.deadline),
+            signature: permit.signature as `0x${string}`,
+            usePermit: permit.usePermit
+          }))
+        ]
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const claimTokens = async (positionId: number, to: string, tokenIds: number[]) => {
+    if (!address) throw new Error('Wallet not connected')
+
+    setIsLoading(true)
+    try {
+      await writeContract({
+        address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
+        abi: VESTING_ABI,
+        functionName: 'claim',
+        args: [
+          BigInt(positionId),
+          to as `0x${string}`,
+          tokenIds.map(id => BigInt(id))
+        ]
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return {
+    createLinearPlan,
+    createTranchePlan,
+    claimTokens,
+    isLoading: isLoading || isPending || isConfirming,
+    error,
+    hash,
+    isSuccess
+  }
+}
