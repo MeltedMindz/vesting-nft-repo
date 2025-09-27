@@ -1,0 +1,15 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "compiler-version": ["error", "^0.8.24"],
+    "func-visibility": ["error", {"ignoreConstructors": true}],
+    "no-empty-blocks": "error",
+    "no-unused-vars": "error",
+    "constructor-syntax": "error",
+    "modifier-name": "error",
+    "private-vars-leading-underscore": "error",
+    "use-forbidden-name": "error",
+    "no-console": "off",
+    "no-global-import": "off"
+  }
+}
