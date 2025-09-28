@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { parseEther } from 'viem'
+import { parseEther, getAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 
 // Contract ABI - you would import this from your compiled contract
@@ -114,6 +114,14 @@ const ERC721_ABI = [
 // Contract address - you would set this based on your deployment
 const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a'
 
+// Ensure the address is properly checksummed
+const getChecksumAddress = (address: string) => {
+  if (!address || address === '0x0000000000000000000000000000000000000000') {
+    return getAddress('0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a')
+  }
+  return getAddress(address)
+}
+
 console.log('VESTING_CONTRACT_ADDRESS:', VESTING_CONTRACT_ADDRESS)
 console.log('Environment variable:', process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS)
 
@@ -172,7 +180,7 @@ export function useVestingContract() {
         address: nftContract as `0x${string}`,
         abi: ERC721_ABI,
         functionName: 'setApprovalForAll',
-        args: [VESTING_CONTRACT_ADDRESS as `0x${string}`, true]
+        args: [getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`, true]
       })
       console.log('Approval transaction hash:', hash)
       return hash
@@ -200,7 +208,7 @@ export function useVestingContract() {
       console.log('Calling wallet client for createLinearPlan...')
       // Then create the linear plan
       const hash = await walletClient.writeContract({
-        address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
+        address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'createLinearPlan',
         args: [
