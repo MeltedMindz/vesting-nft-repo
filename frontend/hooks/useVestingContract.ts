@@ -267,9 +267,35 @@ export function useVestingContract() {
       })
       console.log('Step 2 completed: Transaction hash:', hash)
       return hash
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating linear plan:', error)
-      throw error
+      
+      // Try to extract more specific error information
+      if (error?.cause?.data) {
+        console.error('Error data:', error.cause.data)
+      }
+      if (error?.shortMessage) {
+        console.error('Short message:', error.shortMessage)
+      }
+      if (error?.message) {
+        console.error('Error message:', error.message)
+      }
+      
+      // Provide more user-friendly error message
+      let userMessage = 'Error creating linear plan'
+      if (error?.message?.includes('Invalid template')) {
+        userMessage = 'Invalid template selected. Please try a different template.'
+      } else if (error?.message?.includes('No tokens provided')) {
+        userMessage = 'No NFTs selected. Please select at least one NFT.'
+      } else if (error?.message?.includes('Invalid beneficiary')) {
+        userMessage = 'Invalid beneficiary address.'
+      } else if (error?.message?.includes('ERC721InsufficientApproval')) {
+        userMessage = 'NFTs not approved. Please try again.'
+      } else if (error?.message?.includes('ERC721IncorrectOwner')) {
+        userMessage = 'You do not own these NFTs.'
+      }
+      
+      throw new Error(userMessage)
     } finally {
       setIsLoading(false)
     }
