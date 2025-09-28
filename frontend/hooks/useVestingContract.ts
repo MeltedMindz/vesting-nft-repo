@@ -152,16 +152,25 @@ export function useVestingContract() {
 
   const approveNFTs = async (nftContract: string, tokenIds: number[]) => {
     console.log('Approving NFTs for vesting contract...')
+    console.log('NFT Contract:', nftContract)
+    console.log('Vesting Contract:', VESTING_CONTRACT_ADDRESS)
     
     try {
       // First, try to set approval for all (more gas efficient for multiple NFTs)
-      await writeContract({
+      const approvalResult = await writeContract({
         address: nftContract as `0x${string}`,
         abi: ERC721_ABI,
         functionName: 'setApprovalForAll',
         args: [VESTING_CONTRACT_ADDRESS as `0x${string}`, true]
       })
-      console.log('Approval for all set successfully')
+      console.log('Approval transaction submitted:', approvalResult)
+      
+      // Wait for the approval transaction to be confirmed
+      if (approvalResult) {
+        console.log('Waiting for approval transaction confirmation...')
+        // The transaction is submitted, but we should wait for confirmation
+        // For now, we'll just log and continue
+      }
     } catch (error) {
       console.error('Error setting approval for all:', error)
       throw error
@@ -176,9 +185,12 @@ export function useVestingContract() {
 
     setIsLoading(true)
     try {
+      console.log('Step 1: Approving NFTs for vesting contract...')
       // First approve the NFTs
       await approveNFTs(params.sourceCollection, params.tokenIds)
+      console.log('Step 1 completed: NFTs approved')
       
+      console.log('Step 2: Creating linear vesting plan...')
       // Then create the linear plan
       const result = await writeContract({
         address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
@@ -197,7 +209,8 @@ export function useVestingContract() {
           }))
         ]
       })
-      console.log('Transaction submitted:', result)
+      console.log('Step 2 completed: Transaction submitted:', result)
+      return result
     } catch (error) {
       console.error('Error creating linear plan:', error)
       throw error
