@@ -76,6 +76,40 @@ const VESTING_ABI = [
   }
 ] as const
 
+// ERC721 ABI for NFT approval
+const ERC721_ABI = [
+  {
+    "inputs": [
+      {"name": "to", "type": "address"},
+      {"name": "tokenId", "type": "uint256"}
+    ],
+    "name": "approve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"name": "operator", "type": "address"},
+      {"name": "approved", "type": "bool"}
+    ],
+    "name": "setApprovalForAll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"name": "owner", "type": "address"},
+      {"name": "operator", "type": "address"}
+    ],
+    "name": "isApprovedForAll",
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const
+
 // Contract address - you would set this based on your deployment
 const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a'
 
@@ -116,6 +150,24 @@ export function useVestingContract() {
     hash,
   })
 
+  const approveNFTs = async (nftContract: string, tokenIds: number[]) => {
+    console.log('Approving NFTs for vesting contract...')
+    
+    try {
+      // First, try to set approval for all (more gas efficient for multiple NFTs)
+      await writeContract({
+        address: nftContract as `0x${string}`,
+        abi: ERC721_ABI,
+        functionName: 'setApprovalForAll',
+        args: [VESTING_CONTRACT_ADDRESS as `0x${string}`, true]
+      })
+      console.log('Approval for all set successfully')
+    } catch (error) {
+      console.error('Error setting approval for all:', error)
+      throw error
+    }
+  }
+
   const createLinearPlan = async (params: CreateLinearPlanParams) => {
     if (!address) throw new Error('Wallet not connected')
 
@@ -124,6 +176,10 @@ export function useVestingContract() {
 
     setIsLoading(true)
     try {
+      // First approve the NFTs
+      await approveNFTs(params.sourceCollection, params.tokenIds)
+      
+      // Then create the linear plan
       const result = await writeContract({
         address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
         abi: VESTING_ABI,

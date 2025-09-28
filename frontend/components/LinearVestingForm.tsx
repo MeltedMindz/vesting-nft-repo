@@ -37,6 +37,9 @@ export function LinearVestingForm({ selectedNFTs, sourceCollection }: LinearVest
 
     setIsCreating(true)
     try {
+      console.log('Starting linear plan creation process...')
+      console.log('Step 1: Approving NFTs for vesting contract...')
+      
       const result = await createLinearPlan({
         beneficiary,
         sourceCollection,
@@ -50,6 +53,7 @@ export function LinearVestingForm({ selectedNFTs, sourceCollection }: LinearVest
         }))
       })
       console.log('Linear plan creation result:', result)
+      alert('Linear vesting plan created successfully! Check your wallet for the position NFT.')
     } catch (error) {
       console.error('Error creating linear plan:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
