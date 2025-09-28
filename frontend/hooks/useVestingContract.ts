@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi'
-import { parseEther, getAddress } from 'viem'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract, usePublicClient } from 'wagmi'
+import { parseEther, getAddress, createPublicClient, http } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { base } from 'wagmi/chains'
 
@@ -106,6 +106,13 @@ const VESTING_ABI = [
     "inputs": [{"name": "positionId", "type": "uint256"}, {"name": "timestamp", "type": "uint256"}],
     "name": "unlockedCount",
     "outputs": [{"name": "count", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "tokenId", "type": "uint256"}],
+    "name": "ownerOf",
+    "outputs": [{"name": "", "type": "address"}],
     "stateMutability": "view",
     "type": "function"
   }
@@ -215,6 +222,7 @@ interface CreateTranchePlanParams {
 export function useVestingContract() {
   const { address, chain } = useAccount()
   const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
   const { switchChain } = useSwitchChain()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -468,7 +476,7 @@ export function useVestingContract() {
   }
 
   const fetchUserVestingPositions = async (): Promise<VestingPosition[]> => {
-    if (!address || !walletClient) {
+    if (!address || !publicClient) {
       throw new Error('Wallet not connected')
     }
 
@@ -476,7 +484,7 @@ export function useVestingContract() {
     
     try {
       // Get user's position NFT balance
-      const balance = await walletClient.readContract({
+      const balance = await publicClient.readContract({
         address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'balanceOf',
@@ -485,53 +493,64 @@ export function useVestingContract() {
 
       console.log('User has', Number(balance), 'vesting positions')
 
-      // Fetch each position NFT
-      for (let i = 0; i < Number(balance); i++) {
+      // Since tokenOfOwnerByIndex doesn't exist, we'll iterate through position IDs
+      // and check ownership directly. Start with a reasonable range (1-100)
+      for (let positionId = 1; positionId <= 100; positionId++) {
         try {
-          const tokenId = await walletClient.readContract({
+          // Check if user owns this position NFT
+          const owner = await publicClient.readContract({
             address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
             abi: VESTING_ABI,
-            functionName: 'tokenOfOwnerByIndex',
-            args: [address as `0x${string}`, BigInt(i)]
-          })
-
-          const positionId = Number(tokenId)
-          
-          // Get position details
-          const planData = await walletClient.readContract({
-            address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
-            abi: VESTING_ABI,
-            functionName: 'getPlan',
+            functionName: 'ownerOf',
             args: [BigInt(positionId)]
           })
 
-          // Get claimable count
-          const claimableCount = await walletClient.readContract({
-            address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
-            abi: VESTING_ABI,
-            functionName: 'claimableCount',
-            args: [BigInt(positionId)]
-          })
+          // If user owns this position, fetch the details
+          if (owner.toLowerCase() === address.toLowerCase()) {
+            console.log(`Found user-owned position NFT: ${positionId}`)
+            
+            // Get position details
+            const planData = await publicClient.readContract({
+              address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+              abi: VESTING_ABI,
+              functionName: 'getPlan',
+              args: [BigInt(positionId)]
+            })
 
-          const position: VestingPosition = {
-            id: positionId,
-            sourceCollection: planData.sourceCollection,
-            beneficiary: planData.beneficiary,
-            issuer: planData.issuer,
-            startTime: Number(planData.startTime),
-            totalCount: Number(planData.totalCount),
-            claimedCount: Number(planData.claimedCount),
-            isLinear: planData.isLinear,
-            revoked: planData.revoked,
-            revokeTime: Number(planData.revokeTime),
-            vestedCapOnRevoke: Number(planData.vestedCapOnRevoke),
-            claimableCount: Number(claimableCount)
+            // Get claimable count
+            const claimableCount = await publicClient.readContract({
+              address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+              abi: VESTING_ABI,
+              functionName: 'claimableCount',
+              args: [BigInt(positionId)]
+            })
+
+            const position: VestingPosition = {
+              id: positionId,
+              sourceCollection: planData.sourceCollection,
+              beneficiary: planData.beneficiary,
+              issuer: planData.issuer,
+              startTime: Number(planData.startTime),
+              totalCount: Number(planData.totalCount),
+              claimedCount: Number(planData.claimedCount),
+              isLinear: planData.isLinear,
+              revoked: planData.revoked,
+              revokeTime: Number(planData.revokeTime),
+              vestedCapOnRevoke: Number(planData.vestedCapOnRevoke),
+              claimableCount: Number(claimableCount)
+            }
+
+            positions.push(position)
+            console.log('Fetched position', positionId, ':', position)
+            
+            // Stop if we've found all user's positions
+            if (positions.length >= Number(balance)) {
+              break
+            }
           }
-
-          positions.push(position)
-          console.log('Fetched position', positionId, ':', position)
         } catch (error) {
-          console.error(`Error fetching position ${i}:`, error)
+          // Position doesn't exist or user doesn't own it, continue
+          continue
         }
       }
     } catch (error) {
