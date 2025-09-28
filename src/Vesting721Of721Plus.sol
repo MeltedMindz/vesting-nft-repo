@@ -10,6 +10,17 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
+// ============ EIP-4494 Interface ============
+
+interface IERC4494 {
+    function permit(
+        address spender,
+        uint256 tokenId,
+        uint256 deadline,
+        bytes calldata signature
+    ) external;
+}
+
 /**
  * @title Vesting721Of721Plus
  * @dev Position NFT contract that vests ERC-721 tokens from a source collection over time.
@@ -44,6 +55,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         bool revoked; // Whether plan has been revoked
         uint256 revokeTime; // When it was revoked
         uint256 vestedCapOnRevoke; // How many were vested when revoked
+        uint256 templateId; // Template ID for linear plans (0 for tranche plans)
     }
 
     struct PermitInput {
@@ -93,7 +105,10 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
     event Revoked(uint256 indexed positionId, address indexed issuer, uint256[] returnedTokenIds);
     event RevokedAuto(uint256 indexed positionId, address indexed issuer, uint256[] returnedTokenIds);
     event MetadataToggled(bool useOnchainMetadata);
+    event BaseTokenURISet(string newBaseURI);
     event CustomTokenURISet(uint256 indexed positionId, string uri);
+    event PositionCreated(uint256 indexed positionId, address indexed beneficiary, address indexed issuer, bool isLinear);
+    event TemplateRemoved(uint256 indexed templateId);
 
     // ============ Constructor ============
 
@@ -106,16 +121,6 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         useOnchainMetadata = true;
     }
 
-    // ============ EIP-4494 Interface ============
-
-    interface IERC4494 {
-        function permit(
-            address spender,
-            uint256 tokenId,
-            uint256 deadline,
-            bytes calldata signature
-        ) external;
-    }
 
     // ============ Template Management ============
 
@@ -128,8 +133,10 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         uint256 slice
     ) external onlyOwner returns (uint256 templateId) {
         require(duration > 0, "Duration must be > 0");
+        require(duration <= 10 * 365 days, "Duration too long (max 10 years)");
         require(cliff < duration, "Cliff must be < duration");
         require(slice == 0 || slice <= duration, "Slice must be <= duration");
+        require(slice == 0 || slice >= 1 days, "Slice must be at least 1 day");
 
         templateId = nextTemplateId++;
         linearTemplates[templateId] = LinearTemplate(cliff, duration, slice);
@@ -144,6 +151,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         require(linearTemplates[templateId].duration > 0, "Template does not exist");
         delete linearTemplates[templateId];
         emit LinearTemplateRemoved(templateId);
+        emit TemplateRemoved(templateId);
     }
 
     // ============ Plan Creation ============
@@ -161,7 +169,16 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         require(beneficiary != address(0), "Invalid beneficiary");
         require(sourceCollection != address(0), "Invalid source collection");
         require(tokenIds.length > 0, "No tokens provided");
+        require(tokenIds.length <= 100, "Too many tokens (max 100)");
         require(permits.length == tokenIds.length, "Permits length mismatch");
+        
+        // Validate token IDs are unique
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            require(tokenIds[i] > 0, "Invalid token ID");
+            for (uint256 j = i + 1; j < tokenIds.length; j++) {
+                require(tokenIds[i] != tokenIds[j], "Duplicate token ID");
+            }
+        }
 
         LinearTemplate memory template = linearTemplates[templateId];
         require(template.duration > 0, "Invalid template");
@@ -177,7 +194,8 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
             isLinear: true,
             revoked: false,
             revokeTime: 0,
-            vestedCapOnRevoke: 0
+            vestedCapOnRevoke: 0,
+            templateId: templateId
         });
 
         positionTokenIds[positionId] = tokenIds;
@@ -196,6 +214,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         }
 
         emit LinearPlanCreated(positionId, beneficiary, sourceCollection, templateId, tokenIds);
+        emit PositionCreated(positionId, beneficiary, msg.sender, true);
         _mint(beneficiary, positionId);
     }
 
@@ -212,8 +231,17 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         require(beneficiary != address(0), "Invalid beneficiary");
         require(sourceCollection != address(0), "Invalid source collection");
         require(tokenIds.length > 0, "No tokens provided");
+        require(tokenIds.length <= 100, "Too many tokens (max 100)");
         require(trancheSchedule.length > 0, "No tranches provided");
         require(permits.length == tokenIds.length, "Permits length mismatch");
+        
+        // Validate token IDs are unique
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            require(tokenIds[i] > 0, "Invalid token ID");
+            for (uint256 j = i + 1; j < tokenIds.length; j++) {
+                require(tokenIds[i] != tokenIds[j], "Duplicate token ID");
+            }
+        }
 
         // Validate tranches
         _validateTranches(trancheSchedule, tokenIds.length);
@@ -229,7 +257,8 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
             isLinear: false,
             revoked: false,
             revokeTime: 0,
-            vestedCapOnRevoke: 0
+            vestedCapOnRevoke: 0,
+            templateId: 0
         });
 
         positionTokenIds[positionId] = tokenIds;
@@ -249,6 +278,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         }
 
         emit TranchePlanCreated(positionId, beneficiary, sourceCollection, tokenIds, trancheSchedule);
+        emit PositionCreated(positionId, beneficiary, msg.sender, false);
         _mint(beneficiary, positionId);
     }
 
@@ -265,7 +295,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         VestingPlan storage plan = plans[positionId];
         require(ownerOf(positionId) == msg.sender, "Not position owner");
         require(to != address(0), "Invalid recipient");
-        require(!plan.revoked || block.timestamp <= plan.revokeTime, "Plan revoked");
+        require(!plan.revoked, "Plan has been revoked");
 
         uint256 claimable = claimableCount(positionId);
         require(tokenIds.length <= claimable, "Too many tokens");
@@ -371,10 +401,10 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
     function claimableCount(uint256 positionId) public view returns (uint256) {
         VestingPlan memory plan = plans[positionId];
         if (plan.revoked) {
-            uint256 maxClaimable = plan.vestedCapOnRevoke - plan.claimedCount;
-            return maxClaimable;
+            return plan.vestedCapOnRevoke > plan.claimedCount ? plan.vestedCapOnRevoke - plan.claimedCount : 0;
         }
-        return _getUnlockedCount(positionId) - plan.claimedCount;
+        uint256 unlocked = _getUnlockedCount(positionId);
+        return unlocked > plan.claimedCount ? unlocked - plan.claimedCount : 0;
     }
 
     /**
@@ -392,11 +422,22 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         uint256[] memory result = new uint256[](limit);
         uint256 resultIndex = 0;
 
+        // Cache plan data to avoid multiple storage reads
+        VestingPlan memory plan = plans[positionId];
+        uint256 unlockedAmount = _getUnlockedCount(positionId);
+
         for (uint256 i = 0; i < tokenIds.length && resultIndex < limit; i++) {
             uint256 tokenId = tokenIds[i];
-            if (!released[positionId][tokenId] && _isTokenUnlocked(positionId, tokenId)) {
-                result[resultIndex] = tokenId;
-                resultIndex++;
+            if (!released[positionId][tokenId]) {
+                // Check if token is unlocked using cached data
+                bool isUnlocked = plan.revoked ? 
+                    i < plan.vestedCapOnRevoke : 
+                    i < unlockedAmount;
+                
+                if (isUnlocked) {
+                    result[resultIndex] = tokenId;
+                    resultIndex++;
+                }
             }
         }
 
@@ -428,10 +469,21 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
     }
 
     /**
+     * @dev Set base token URI
+     */
+    function setBaseTokenURI(string calldata newBaseURI) external onlyOwner {
+        require(bytes(newBaseURI).length > 0, "Base URI cannot be empty");
+        baseTokenURI = newBaseURI;
+        emit BaseTokenURISet(newBaseURI);
+    }
+
+    /**
      * @dev Set custom token URI for a position
      */
     function setCustomTokenURI(uint256 positionId, string calldata uri) external {
-        require(ownerOf(positionId) == msg.sender || owner() == msg.sender, "Not authorized");
+        require(ownerOf(positionId) == msg.sender, "Not position owner");
+        require(bytes(uri).length > 0, "URI cannot be empty");
+        require(bytes(uri).length <= 2048, "URI too long (max 2048 chars)");
         customTokenURI[positionId] = uri;
         emit CustomTokenURISet(positionId, uri);
     }
@@ -440,7 +492,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
      * @dev Get token URI
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
 
         if (bytes(customTokenURI[tokenId]).length > 0) {
             return customTokenURI[tokenId];
@@ -455,9 +507,17 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
 
     // ============ Internal Functions ============
 
-    function _validateTranches(Tranche[] calldata trancheSchedule, uint256 totalCount) internal pure {
-        require(trancheSchedule[0].timestamp > 0, "First tranche must have timestamp > 0");
+    function _validateTranches(Tranche[] calldata trancheSchedule, uint256 totalCount) internal view {
+        require(trancheSchedule.length > 0, "No tranches provided");
+        require(trancheSchedule.length <= 50, "Too many tranches (max 50)");
+        require(trancheSchedule[0].timestamp > block.timestamp, "First tranche must be in the future");
         require(trancheSchedule[trancheSchedule.length - 1].count == totalCount, "Last tranche must equal total");
+
+        for (uint256 i = 0; i < trancheSchedule.length; i++) {
+            require(trancheSchedule[i].timestamp > 0, "Invalid timestamp");
+            require(trancheSchedule[i].count > 0, "Invalid count");
+            require(trancheSchedule[i].timestamp <= block.timestamp + 10 * 365 days, "Tranche too far in future");
+        }
 
         for (uint256 i = 1; i < trancheSchedule.length; i++) {
             require(
@@ -513,8 +573,7 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
 
     function _getLinearUnlockedCount(uint256 positionId, uint256 timestamp) internal view returns (uint256) {
         VestingPlan memory plan = plans[positionId];
-        uint256 templateId = 0; // This would need to be stored or derived
-        LinearTemplate memory template = linearTemplates[templateId];
+        LinearTemplate memory template = linearTemplates[plan.templateId];
 
         uint256 elapsed = timestamp - plan.startTime;
         if (elapsed < template.cliff) return 0;
@@ -607,9 +666,9 @@ contract Vesting721Of721Plus is ERC721, IERC721Receiver, Ownable, ReentrancyGuar
         return string(abi.encodePacked("data:application/json;base64,", _base64Encode(bytes(json))));
     }
 
-    function _unlockedNowAndNext(uint256 positionId) internal view returns (uint256 unlockedNow, uint256 nextUnlockTime) {
+    function _unlockedNowAndNext(uint256 positionId) internal view returns (uint256 unlockedNow, uint256 nextUnlock) {
         unlockedNow = _getUnlockedCount(positionId);
-        nextUnlockTime = _getNextUnlockTime(positionId);
+        nextUnlock = _getNextUnlockTime(positionId);
     }
 
     function _toHexString(address addr) internal pure returns (string memory) {

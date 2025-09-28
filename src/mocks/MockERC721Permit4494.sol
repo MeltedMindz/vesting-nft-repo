@@ -78,7 +78,7 @@ contract MockERC721Permit4494 is ERC721, Ownable {
         bytes calldata signature
     ) external {
         require(block.timestamp <= deadline, "Permit expired");
-        require(_exists(tokenId), "Token does not exist");
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
 
         address owner = ownerOf(tokenId);
         require(owner != address(0), "Invalid owner");
@@ -105,7 +105,7 @@ contract MockERC721Permit4494 is ERC721, Ownable {
 
         nonces[tokenId]++;
 
-        _approve(spender, tokenId);
+        _approve(spender, tokenId, owner);
     }
 
     /**

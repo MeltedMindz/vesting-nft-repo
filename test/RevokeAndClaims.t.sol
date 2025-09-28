@@ -219,11 +219,16 @@ contract RevokeAndClaimsTest is Test {
 
         vm.startPrank(issuer);
         uint256[] memory tokenIds = new uint256[](5);
-        tokenIds[0] = mockNFT.mintWithId(issuer, 100);
-        tokenIds[1] = mockNFT.mintWithId(issuer, 200);
-        tokenIds[2] = mockNFT.mintWithId(issuer, 300);
-        tokenIds[3] = mockNFT.mintWithId(issuer, 400);
-        tokenIds[4] = mockNFT.mintWithId(issuer, 500);
+        mockNFT.mintWithId(issuer, 100);
+        tokenIds[0] = 100;
+        mockNFT.mintWithId(issuer, 200);
+        tokenIds[1] = 200;
+        mockNFT.mintWithId(issuer, 300);
+        tokenIds[2] = 300;
+        mockNFT.mintWithId(issuer, 400);
+        tokenIds[3] = 400;
+        mockNFT.mintWithId(issuer, 500);
+        tokenIds[4] = 500;
 
         Vesting721Of721Plus.PermitInput[] memory permits = new Vesting721Of721Plus.PermitInput[](5);
         for (uint256 i = 0; i < 5; i++) {

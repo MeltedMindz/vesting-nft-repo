@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 import "../src/Vesting721Of721Plus.sol";
 import "../src/mocks/MockERC721.sol";
 
@@ -49,7 +50,7 @@ contract CreateTranchePlanScript is Script {
 
         console.log("Tranche schedule:");
         for (uint256 i = 0; i < tranches.length; i++) {
-            console.log("  Tranche", i, ": timestamp =", tranches[i].timestamp, ", count =", tranches[i].count);
+            console.log("Tranche %d: timestamp = %d, count = %d", i, tranches[i].timestamp, tranches[i].count);
         }
 
         // Create permit inputs (no permits for this example)
