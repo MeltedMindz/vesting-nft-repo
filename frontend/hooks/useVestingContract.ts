@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther } from 'viem'
+import { useWalletClient } from 'wagmi'
 
 // Contract ABI - you would import this from your compiled contract
 const VESTING_ABI = [
@@ -146,6 +147,7 @@ interface CreateTranchePlanParams {
 
 export function useVestingContract() {
   const { address } = useAccount()
+  const { data: walletClient } = useWalletClient()
   const [isLoading, setIsLoading] = useState(false)
 
   const { writeContract, data: hash, error, isPending } = useWriteContract()
@@ -159,16 +161,21 @@ export function useVestingContract() {
     console.log('Vesting Contract:', VESTING_CONTRACT_ADDRESS)
     console.log('User address:', address)
     
+    if (!walletClient) {
+      throw new Error('Wallet client not available')
+    }
+    
     try {
-      console.log('Calling writeContract for approval...')
+      console.log('Calling wallet client for approval...')
       // First, try to set approval for all (more gas efficient for multiple NFTs)
-      await writeContract({
+      const hash = await walletClient.writeContract({
         address: nftContract as `0x${string}`,
         abi: ERC721_ABI,
         functionName: 'setApprovalForAll',
         args: [VESTING_CONTRACT_ADDRESS as `0x${string}`, true]
       })
-      console.log('Approval transaction submitted successfully')
+      console.log('Approval transaction hash:', hash)
+      return hash
     } catch (error) {
       console.error('Error setting approval for all:', error)
       throw error
@@ -177,6 +184,7 @@ export function useVestingContract() {
 
   const createLinearPlan = async (params: CreateLinearPlanParams) => {
     if (!address) throw new Error('Wallet not connected')
+    if (!walletClient) throw new Error('Wallet client not available')
 
     console.log('Creating linear plan with params:', params)
     console.log('Contract address:', VESTING_CONTRACT_ADDRESS)
@@ -189,9 +197,9 @@ export function useVestingContract() {
       console.log('Step 1 completed: NFTs approved')
       
       console.log('Step 2: Creating linear vesting plan...')
-      console.log('Calling writeContract for createLinearPlan...')
+      console.log('Calling wallet client for createLinearPlan...')
       // Then create the linear plan
-      await writeContract({
+      const hash = await walletClient.writeContract({
         address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'createLinearPlan',
@@ -208,7 +216,8 @@ export function useVestingContract() {
           }))
         ]
       })
-      console.log('Step 2 completed: Transaction submitted successfully')
+      console.log('Step 2 completed: Transaction hash:', hash)
+      return hash
     } catch (error) {
       console.error('Error creating linear plan:', error)
       throw error
