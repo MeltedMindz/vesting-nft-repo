@@ -77,7 +77,7 @@ const VESTING_ABI = [
 ] as const
 
 // Contract address - you would set this based on your deployment
-const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0x...'
+const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a'
 
 interface PermitInput {
   tokenId: number
@@ -119,9 +119,12 @@ export function useVestingContract() {
   const createLinearPlan = async (params: CreateLinearPlanParams) => {
     if (!address) throw new Error('Wallet not connected')
 
+    console.log('Creating linear plan with params:', params)
+    console.log('Contract address:', VESTING_CONTRACT_ADDRESS)
+
     setIsLoading(true)
     try {
-      await writeContract({
+      const result = await writeContract({
         address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'createLinearPlan',
@@ -138,6 +141,10 @@ export function useVestingContract() {
           }))
         ]
       })
+      console.log('Transaction submitted:', result)
+    } catch (error) {
+      console.error('Error creating linear plan:', error)
+      throw error
     } finally {
       setIsLoading(false)
     }

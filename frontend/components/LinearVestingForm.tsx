@@ -17,21 +17,27 @@ export function LinearVestingForm({ selectedNFTs, sourceCollection }: LinearVest
   const [templateId, setTemplateId] = useState(1)
   const [isCreating, setIsCreating] = useState(false)
 
-  // Mock templates - in a real app, these would be fetched from the contract
+  // Templates configured in the contract
   const templates = [
-    { id: 1, name: '1 Year Linear', cliff: 0, duration: 365 * 24 * 60 * 60, slice: 0 },
-    { id: 2, name: '2 Year Linear', cliff: 0, duration: 2 * 365 * 24 * 60 * 60, slice: 0 },
-    { id: 3, name: '4 Year Linear', cliff: 365 * 24 * 60 * 60, duration: 4 * 365 * 24 * 60 * 60, slice: 0 },
-    { id: 4, name: 'Monthly Release', cliff: 0, duration: 365 * 24 * 60 * 60, slice: 30 * 24 * 60 * 60 },
+    { id: 1, name: '3 Month Cliff, 12 Month Duration', cliff: 90 * 24 * 60 * 60, duration: 365 * 24 * 60 * 60, slice: 24 * 60 * 60 },
+    { id: 2, name: '6 Month Duration, Weekly Release', cliff: 0, duration: 180 * 24 * 60 * 60, slice: 7 * 24 * 60 * 60 },
+    { id: 3, name: '1 Month Cliff, 24 Month Duration', cliff: 30 * 24 * 60 * 60, duration: 2 * 365 * 24 * 60 * 60, slice: 24 * 60 * 60 },
+    { id: 4, name: '1 Year Continuous', cliff: 0, duration: 365 * 24 * 60 * 60, slice: 0 },
   ]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!address || !beneficiary) return
 
+    console.log('Submitting linear vesting form...')
+    console.log('Beneficiary:', beneficiary)
+    console.log('Source Collection:', sourceCollection)
+    console.log('Template ID:', templateId)
+    console.log('Selected NFTs:', selectedNFTs)
+
     setIsCreating(true)
     try {
-      await createLinearPlan({
+      const result = await createLinearPlan({
         beneficiary,
         sourceCollection,
         templateId,
@@ -43,8 +49,10 @@ export function LinearVestingForm({ selectedNFTs, sourceCollection }: LinearVest
           usePermit: false
         }))
       })
+      console.log('Linear plan creation result:', result)
     } catch (error) {
       console.error('Error creating linear plan:', error)
+      alert(`Error creating linear plan: ${error.message || error}`)
     } finally {
       setIsCreating(false)
     }
