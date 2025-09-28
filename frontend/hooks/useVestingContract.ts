@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi'
 import { parseEther, getAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { base } from 'wagmi/chains'
 
 // Contract ABI - you would import this from your compiled contract
 const VESTING_ABI = [
@@ -169,8 +170,9 @@ interface CreateTranchePlanParams {
 }
 
 export function useVestingContract() {
-  const { address } = useAccount()
+  const { address, chain } = useAccount()
   const { data: walletClient } = useWalletClient()
+  const { switchChain } = useSwitchChain()
   const [isLoading, setIsLoading] = useState(false)
 
   const { writeContract, data: hash, error, isPending } = useWriteContract()
@@ -211,8 +213,21 @@ export function useVestingContract() {
     if (!address) throw new Error('Wallet not connected')
     if (!walletClient) throw new Error('Wallet client not available')
 
+    // Check if connected to Base network
+    if (chain?.id !== base.id) {
+      console.log('Switching to Base network...')
+      try {
+        await switchChain({ chainId: base.id })
+        // Wait a moment for the network switch
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } catch (error) {
+        throw new Error('Please switch to Base network to use this application')
+      }
+    }
+
     console.log('Creating linear plan with params:', params)
     console.log('Contract address:', VESTING_CONTRACT_ADDRESS)
+    console.log('Current chain:', chain?.name, chain?.id)
 
     setIsLoading(true)
     try {

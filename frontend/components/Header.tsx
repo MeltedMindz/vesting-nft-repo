@@ -1,16 +1,30 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Lock, Menu, X } from 'lucide-react'
+import { Lock, Menu, X, AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
+import { useAccount } from 'wagmi'
+import { base } from 'wagmi/chains'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { chain, isConnected } = useAccount()
+  
+  const isWrongNetwork = isConnected && chain?.id !== base.id
 
   return (
-    <header className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <>
+      {isWrongNetwork && (
+        <div className="bg-red-600 text-white text-center py-2 text-sm">
+          <div className="flex items-center justify-center space-x-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Please switch to Base network to use this application</span>
+          </div>
+        </div>
+      )}
+      <header className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
             <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl">
               <Lock className="h-6 w-6 text-white" />
@@ -54,5 +68,6 @@ export function Header() {
         )}
       </div>
     </header>
+    </>
   )
 }
