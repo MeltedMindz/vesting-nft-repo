@@ -190,22 +190,38 @@ export function useVestingContract() {
       throw new Error('Wallet client not available')
     }
     
-    try {
-      console.log('Calling wallet client for approval...')
-      const vestingAddress = getChecksumAddress(VESTING_CONTRACT_ADDRESS)
-      console.log('Approving for vesting contract:', vestingAddress)
-      // First, try to set approval for all (more gas efficient for multiple NFTs)
-      const hash = await walletClient.writeContract({
-        address: nftContract as `0x${string}`,
-        abi: ERC721_ABI,
-        functionName: 'setApprovalForAll',
-        args: [vestingAddress as `0x${string}`, true]
-      })
-      console.log('Approval transaction hash:', hash)
-      return hash
-    } catch (error) {
-      console.error('Error setting approval for all:', error)
-      throw error
+    const vestingAddress = getChecksumAddress(VESTING_CONTRACT_ADDRESS)
+    console.log('Approving for vesting contract:', vestingAddress)
+    
+    // Retry logic for rate limiting
+    let attempts = 0
+    const maxAttempts = 3
+    const retryDelay = 2000 // 2 seconds
+    
+    while (attempts < maxAttempts) {
+      try {
+        attempts++
+        console.log(`Approval attempt ${attempts}/${maxAttempts}...`)
+        
+        const hash = await walletClient.writeContract({
+          address: nftContract as `0x${string}`,
+          abi: ERC721_ABI,
+          functionName: 'setApprovalForAll',
+          args: [vestingAddress as `0x${string}`, true]
+        })
+        console.log('Approval transaction hash:', hash)
+        return hash
+      } catch (error: any) {
+        console.error(`Approval attempt ${attempts} failed:`, error)
+        
+        if (error?.message?.includes('rate limited') && attempts < maxAttempts) {
+          console.log(`Rate limited. Waiting ${retryDelay}ms before retry...`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          continue
+        }
+        
+        throw error
+      }
     }
   }
 
@@ -247,26 +263,48 @@ export function useVestingContract() {
         tokenIds: params.tokenIds,
         permits: params.permits
       })
-      // Then create the linear plan
-      const hash = await walletClient.writeContract({
-        address: checksummedAddress as `0x${string}`,
-        abi: VESTING_ABI,
-        functionName: 'createLinearPlan',
-        args: [
-          params.beneficiary as `0x${string}`,
-          params.sourceCollection as `0x${string}`,
-          BigInt(params.templateId),
-          params.tokenIds?.map(id => BigInt(id)) || [],
-          params.permits?.map(permit => ({
-            tokenId: BigInt(permit.tokenId),
-            deadline: BigInt(permit.deadline),
-            signature: permit.signature as `0x${string}`,
-            usePermit: permit.usePermit
-          })) || []
-        ]
-      })
-      console.log('Step 2 completed: Transaction hash:', hash)
-      return hash
+      
+      // Retry logic for rate limiting
+      let attempts = 0
+      const maxAttempts = 3
+      const retryDelay = 2000 // 2 seconds
+      
+      while (attempts < maxAttempts) {
+        try {
+          attempts++
+          console.log(`CreateLinearPlan attempt ${attempts}/${maxAttempts}...`)
+          
+          const hash = await walletClient.writeContract({
+            address: checksummedAddress as `0x${string}`,
+            abi: VESTING_ABI,
+            functionName: 'createLinearPlan',
+            args: [
+              params.beneficiary as `0x${string}`,
+              params.sourceCollection as `0x${string}`,
+              BigInt(params.templateId),
+              params.tokenIds?.map(id => BigInt(id)) || [],
+              params.permits?.map(permit => ({
+                tokenId: BigInt(permit.tokenId),
+                deadline: BigInt(permit.deadline),
+                signature: permit.signature as `0x${string}`,
+                usePermit: permit.usePermit
+              })) || []
+            ]
+          })
+          console.log('Step 2 completed: Transaction hash:', hash)
+          return hash
+        } catch (error: any) {
+          console.error(`CreateLinearPlan attempt ${attempts} failed:`, error)
+          
+          if (error?.message?.includes('rate limited') && attempts < maxAttempts) {
+            console.log(`Rate limited. Waiting ${retryDelay}ms before retry...`)
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+            continue
+          }
+          
+          throw error
+        }
+      }
     } catch (error: any) {
       console.error('Error creating linear plan:', error)
       
@@ -283,7 +321,9 @@ export function useVestingContract() {
       
       // Provide more user-friendly error message
       let userMessage = 'Error creating linear plan'
-      if (error?.message?.includes('Invalid template')) {
+      if (error?.message?.includes('rate limited')) {
+        userMessage = 'Network is busy. Please wait a moment and try again.'
+      } else if (error?.message?.includes('Invalid template')) {
         userMessage = 'Invalid template selected. Please try a different template.'
       } else if (error?.message?.includes('No tokens provided')) {
         userMessage = 'No NFTs selected. Please select at least one NFT.'
