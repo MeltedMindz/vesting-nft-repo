@@ -1,5 +1,5 @@
 import './globals.css'
-import { Providers } from './providers'
+import { Providers } from './providers-simple'
 
 export const metadata = {
   title: 'Vesting NFT Platform',
