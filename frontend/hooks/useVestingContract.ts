@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther, getAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { base } from 'wagmi/chains'
@@ -80,6 +80,34 @@ const VESTING_ABI = [
     "outputs": [{"name": "count", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"name": "owner", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "owner", "type": "address"}, {"name": "index", "type": "uint256"}],
+    "name": "tokenOfOwnerByIndex",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "positionId", "type": "uint256"}],
+    "name": "tokenURI",
+    "outputs": [{"name": "", "type": "string"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "positionId", "type": "uint256"}, {"name": "timestamp", "type": "uint256"}],
+    "name": "unlockedCount",
+    "outputs": [{"name": "count", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const
 
@@ -153,6 +181,21 @@ interface Tranche {
   count: number
 }
 
+interface VestingPosition {
+  id: number
+  sourceCollection: string
+  beneficiary: string
+  issuer: string
+  startTime: number
+  totalCount: number
+  claimedCount: number
+  isLinear: boolean
+  revoked: boolean
+  revokeTime: number
+  vestedCapOnRevoke: number
+  claimableCount: number
+}
+
 interface CreateLinearPlanParams {
   beneficiary: string
   sourceCollection: string
@@ -178,6 +221,17 @@ export function useVestingContract() {
   const { writeContract, data: hash, error, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
+  })
+
+  // Fetch user's position NFT balance
+  const { data: positionBalance } = useReadContract({
+    address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+    abi: VESTING_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address,
+    }
   })
 
   const approveNFTs = async (nftContract: string, tokenIds: number[]) => {
@@ -413,10 +467,87 @@ export function useVestingContract() {
     }
   }
 
+  const fetchUserVestingPositions = async (): Promise<VestingPosition[]> => {
+    if (!address || !walletClient) {
+      throw new Error('Wallet not connected')
+    }
+
+    const positions: VestingPosition[] = []
+    
+    try {
+      // Get user's position NFT balance
+      const balance = await walletClient.readContract({
+        address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+        abi: VESTING_ABI,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`]
+      })
+
+      console.log('User has', Number(balance), 'vesting positions')
+
+      // Fetch each position NFT
+      for (let i = 0; i < Number(balance); i++) {
+        try {
+          const tokenId = await walletClient.readContract({
+            address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+            abi: VESTING_ABI,
+            functionName: 'tokenOfOwnerByIndex',
+            args: [address as `0x${string}`, BigInt(i)]
+          })
+
+          const positionId = Number(tokenId)
+          
+          // Get position details
+          const planData = await walletClient.readContract({
+            address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+            abi: VESTING_ABI,
+            functionName: 'getPlan',
+            args: [BigInt(positionId)]
+          })
+
+          // Get claimable count
+          const claimableCount = await walletClient.readContract({
+            address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+            abi: VESTING_ABI,
+            functionName: 'claimableCount',
+            args: [BigInt(positionId)]
+          })
+
+          const position: VestingPosition = {
+            id: positionId,
+            sourceCollection: planData.sourceCollection,
+            beneficiary: planData.beneficiary,
+            issuer: planData.issuer,
+            startTime: Number(planData.startTime),
+            totalCount: Number(planData.totalCount),
+            claimedCount: Number(planData.claimedCount),
+            isLinear: planData.isLinear,
+            revoked: planData.revoked,
+            revokeTime: Number(planData.revokeTime),
+            vestedCapOnRevoke: Number(planData.vestedCapOnRevoke),
+            claimableCount: Number(claimableCount)
+          }
+
+          positions.push(position)
+          console.log('Fetched position', positionId, ':', position)
+        } catch (error) {
+          console.error(`Error fetching position ${i}:`, error)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching vesting positions:', error)
+      throw error
+    }
+
+    return positions
+  }
+
   return {
     createLinearPlan,
     createTranchePlan,
     claimTokens,
+    fetchUserVestingPositions,
+    positionBalance: positionBalance ? Number(positionBalance) : 0,
     isLoading: isLoading || isPending || isConfirming,
     error,
     hash,

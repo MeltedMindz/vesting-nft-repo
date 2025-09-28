@@ -26,6 +26,7 @@ interface VestingPosition {
   revoked: boolean
   revokeTime: number
   vestedCapOnRevoke: number
+  claimableCount: number
 }
 
 interface VestingPositionCardProps {
