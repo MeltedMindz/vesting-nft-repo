@@ -52,7 +52,8 @@ export function LinearVestingForm({ selectedNFTs, sourceCollection }: LinearVest
       console.log('Linear plan creation result:', result)
     } catch (error) {
       console.error('Error creating linear plan:', error)
-      alert(`Error creating linear plan: ${error.message || error}`)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      alert(`Error creating linear plan: ${errorMessage}`)
     } finally {
       setIsCreating(false)
     }
