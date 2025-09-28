@@ -216,6 +216,13 @@ export function useVestingContract() {
       console.log('Calling wallet client for createLinearPlan...')
       const checksummedAddress = getChecksumAddress(VESTING_CONTRACT_ADDRESS)
       console.log('Using checksummed address:', checksummedAddress)
+      console.log('Parameters:', {
+        beneficiary: params.beneficiary,
+        sourceCollection: params.sourceCollection,
+        templateId: params.templateId,
+        tokenIds: params.tokenIds,
+        permits: params.permits
+      })
       // Then create the linear plan
       const hash = await walletClient.writeContract({
         address: checksummedAddress as `0x${string}`,
@@ -225,13 +232,13 @@ export function useVestingContract() {
           params.beneficiary as `0x${string}`,
           params.sourceCollection as `0x${string}`,
           BigInt(params.templateId),
-          params.tokenIds.map(id => BigInt(id)),
-          params.permits.map(permit => ({
+          params.tokenIds?.map(id => BigInt(id)) || [],
+          params.permits?.map(permit => ({
             tokenId: BigInt(permit.tokenId),
             deadline: BigInt(permit.deadline),
             signature: permit.signature as `0x${string}`,
             usePermit: permit.usePermit
-          }))
+          })) || []
         ]
       })
       console.log('Step 2 completed: Transaction hash:', hash)
