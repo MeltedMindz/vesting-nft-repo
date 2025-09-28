@@ -154,18 +154,17 @@ export function useVestingContract() {
     console.log('Approving NFTs for vesting contract...')
     console.log('NFT Contract:', nftContract)
     console.log('Vesting Contract:', VESTING_CONTRACT_ADDRESS)
+    console.log('User address:', address)
     
     try {
+      console.log('Calling writeContract for approval...')
       // First, try to set approval for all (more gas efficient for multiple NFTs)
-      const approvalResult = await writeContract({
+      await writeContract({
         address: nftContract as `0x${string}`,
         abi: ERC721_ABI,
         functionName: 'setApprovalForAll',
         args: [VESTING_CONTRACT_ADDRESS as `0x${string}`, true]
       })
-      console.log('Approval transaction submitted:', approvalResult)
-      
-      // The transaction is submitted
       console.log('Approval transaction submitted successfully')
     } catch (error) {
       console.error('Error setting approval for all:', error)
@@ -187,8 +186,9 @@ export function useVestingContract() {
       console.log('Step 1 completed: NFTs approved')
       
       console.log('Step 2: Creating linear vesting plan...')
+      console.log('Calling writeContract for createLinearPlan...')
       // Then create the linear plan
-      const result = await writeContract({
+      await writeContract({
         address: VESTING_CONTRACT_ADDRESS as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'createLinearPlan',
@@ -205,8 +205,7 @@ export function useVestingContract() {
           }))
         ]
       })
-      console.log('Step 2 completed: Transaction submitted:', result)
-      return result
+      console.log('Step 2 completed: Transaction submitted successfully')
     } catch (error) {
       console.error('Error creating linear plan:', error)
       throw error
