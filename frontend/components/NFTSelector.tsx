@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { Image, Check, Plus } from 'lucide-react'
+import { Image, Check, Plus, CheckSquare, Square, X } from 'lucide-react'
 
 interface NFTSelectorProps {
   selectedNFTs: number[]
@@ -84,6 +84,26 @@ export function NFTSelector({
     }
   }
 
+  const selectAllNFTs = () => {
+    const allNFTIds = nfts.map(nft => nft.id)
+    setSelectedNFTs(allNFTIds)
+  }
+
+  const deselectAllNFTs = () => {
+    setSelectedNFTs([])
+  }
+
+  const isAllSelected = selectedNFTs.length === nfts.length && nfts.length > 0
+  const isPartiallySelected = selectedNFTs.length > 0 && selectedNFTs.length < nfts.length
+
+  const selectRange = (start: number, end: number) => {
+    const rangeIds = []
+    for (let i = start; i <= end && i <= nfts.length; i++) {
+      rangeIds.push(i)
+    }
+    setSelectedNFTs([...selectedNFTs, ...rangeIds.filter(id => !selectedNFTs.includes(id))])
+  }
+
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8">
       <h3 className="text-xl font-semibold mb-6 text-white">Select NFTs to Vest</h3>
@@ -108,9 +128,43 @@ export function NFTSelector({
         <div>
           <div className="flex items-center justify-between mb-6">
             <h4 className="font-medium text-white text-lg">Your NFTs</h4>
-            <span className="text-sm text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
-              {selectedNFTs.length} selected
-            </span>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
+                {selectedNFTs.length} selected
+              </span>
+              <div className="flex items-center space-x-2">
+                {selectedNFTs.length > 0 && (
+                  <button
+                    onClick={deselectAllNFTs}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 transition-all duration-200"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="text-sm font-medium">Clear</span>
+                  </button>
+                )}
+                <button
+                  onClick={isAllSelected ? deselectAllNFTs : selectAllNFTs}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    isAllSelected
+                      ? 'bg-purple-500/20 border-purple-500 text-purple-300 hover:bg-purple-500/30'
+                      : isPartiallySelected
+                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300 hover:bg-yellow-500/30'
+                      : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-slate-600/50 hover:border-slate-500'
+                  }`}
+                >
+                  {isAllSelected ? (
+                    <CheckSquare className="h-4 w-4" />
+                  ) : isPartiallySelected ? (
+                    <Square className="h-4 w-4" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {isAllSelected ? 'Deselect All' : 'Select All'}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {loading ? (
@@ -118,6 +172,49 @@ export function NFTSelector({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             </div>
           ) : (
+            <>
+              {/* Range Selector */}
+              <div className="mb-6 p-4 bg-slate-700/30 rounded-xl border border-slate-600/50">
+                <h5 className="text-sm font-medium text-slate-300 mb-3">Quick Select Ranges</h5>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => selectRange(1, 10)}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  >
+                    1-10
+                  </button>
+                  <button
+                    onClick={() => selectRange(11, 20)}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  >
+                    11-20
+                  </button>
+                  <button
+                    onClick={() => selectRange(21, 30)}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  >
+                    21-30
+                  </button>
+                  <button
+                    onClick={() => selectRange(31, 40)}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  >
+                    31-40
+                  </button>
+                  <button
+                    onClick={() => selectRange(41, 50)}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  >
+                    41-50
+                  </button>
+                  <button
+                    onClick={() => selectRange(51, 100)}
+                    className="px-3 py-1 text-xs bg-green-500/20 text-green-300 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors"
+                  >
+                    51-100
+                  </button>
+                </div>
+              </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {nfts.map((nft) => (
                 <div
@@ -144,6 +241,7 @@ export function NFTSelector({
                 </div>
               ))}
             </div>
+            </>
           )}
 
           {selectedNFTs.length > 0 && (
