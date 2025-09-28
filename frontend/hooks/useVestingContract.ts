@@ -113,6 +113,9 @@ const ERC721_ABI = [
 // Contract address - you would set this based on your deployment
 const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a'
 
+console.log('VESTING_CONTRACT_ADDRESS:', VESTING_CONTRACT_ADDRESS)
+console.log('Environment variable:', process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS)
+
 interface PermitInput {
   tokenId: number
   deadline: number
