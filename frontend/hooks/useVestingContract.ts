@@ -195,22 +195,44 @@ export function useVestingContract() {
     
     // Retry logic for rate limiting
     let attempts = 0
-    const maxAttempts = 3
-    const retryDelay = 2000 // 2 seconds
+    const maxAttempts = 5
+    const retryDelay = 5000 // 5 seconds
     
     while (attempts < maxAttempts) {
       try {
         attempts++
         console.log(`Approval attempt ${attempts}/${maxAttempts}...`)
         
-        const hash = await walletClient.writeContract({
-          address: nftContract as `0x${string}`,
-          abi: ERC721_ABI,
-          functionName: 'setApprovalForAll',
-          args: [vestingAddress as `0x${string}`, true]
-        })
-        console.log('Approval transaction hash:', hash)
-        return hash
+        // Try setApprovalForAll first, if it fails due to rate limiting, try individual approvals
+        try {
+          const hash = await walletClient.writeContract({
+            address: nftContract as `0x${string}`,
+            abi: ERC721_ABI,
+            functionName: 'setApprovalForAll',
+            args: [vestingAddress as `0x${string}`, true]
+          })
+          console.log('Approval transaction hash:', hash)
+          return hash
+        } catch (approvalError: any) {
+          if (approvalError?.message?.includes('rate limited') && tokenIds.length <= 5) {
+            console.log('setApprovalForAll rate limited, trying individual approvals...')
+            // For small numbers of NFTs, try individual approvals
+            for (const tokenId of tokenIds) {
+              await walletClient.writeContract({
+                address: nftContract as `0x${string}`,
+                abi: ERC721_ABI,
+                functionName: 'approve',
+                args: [vestingAddress as `0x${string}`, BigInt(tokenId)]
+              })
+              // Small delay between approvals
+              await new Promise(resolve => setTimeout(resolve, 1000))
+            }
+            console.log('Individual approvals completed')
+            return '0x0000000000000000000000000000000000000000000000000000000000000000' // Dummy hash
+          } else {
+            throw approvalError
+          }
+        }
       } catch (error: any) {
         console.error(`Approval attempt ${attempts} failed:`, error)
         
@@ -266,8 +288,8 @@ export function useVestingContract() {
       
       // Retry logic for rate limiting
       let attempts = 0
-      const maxAttempts = 3
-      const retryDelay = 2000 // 2 seconds
+      const maxAttempts = 5
+      const retryDelay = 5000 // 5 seconds
       
       while (attempts < maxAttempts) {
         try {
@@ -321,8 +343,8 @@ export function useVestingContract() {
       
       // Provide more user-friendly error message
       let userMessage = 'Error creating linear plan'
-      if (error?.message?.includes('rate limited')) {
-        userMessage = 'Network is busy. Please wait a moment and try again.'
+      if (error?.message?.includes('rate limited') || error?.message?.includes('Internal JSON-RPC error')) {
+        userMessage = 'Network is experiencing high traffic. Please wait a few minutes and try again.'
       } else if (error?.message?.includes('Invalid template')) {
         userMessage = 'Invalid template selected. Please try a different template.'
       } else if (error?.message?.includes('No tokens provided')) {
