@@ -9,7 +9,7 @@ import { TrendingUp, Calendar } from 'lucide-react'
 export function CreateVestingPlan() {
   const [vestingType, setVestingType] = useState<'linear' | 'tranche'>('linear')
   const [selectedNFTs, setSelectedNFTs] = useState<number[]>([])
-  const [sourceCollection, setSourceCollection] = useState('')
+  const [sourceCollection, setSourceCollection] = useState('0x8092D5f24E3da6C50F93B70dAf6A549061b127F3')
 
   return (
     <div className="space-y-8">

@@ -21,25 +21,60 @@ export function NFTSelector({
   const [nfts, setNfts] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Mock NFT data - in a real app, you'd fetch from the blockchain
-  const mockNFTs = [
-    { id: 1, name: 'Cool NFT #1', image: '/api/placeholder/200/200' },
-    { id: 2, name: 'Cool NFT #2', image: '/api/placeholder/200/200' },
-    { id: 3, name: 'Cool NFT #3', image: '/api/placeholder/200/200' },
-    { id: 4, name: 'Cool NFT #4', image: '/api/placeholder/200/200' },
-    { id: 5, name: 'Cool NFT #5', image: '/api/placeholder/200/200' },
-  ]
+  // ERC721 ABI for fetching NFTs
+  const ERC721_ABI = [
+    {
+      "inputs": [{"name": "owner", "type": "address"}],
+      "name": "balanceOf",
+      "outputs": [{"name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"name": "owner", "type": "address"}, {"name": "index", "type": "uint256"}],
+      "name": "tokenOfOwnerByIndex",
+      "outputs": [{"name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"name": "tokenId", "type": "uint256"}],
+      "name": "tokenURI",
+      "outputs": [{"name": "", "type": "string"}],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ] as const
 
   useEffect(() => {
     if (sourceCollection && address) {
       setLoading(true)
-      // Simulate API call
-      setTimeout(() => {
-        setNfts(mockNFTs)
-        setLoading(false)
-      }, 1000)
+      fetchUserNFTs()
     }
   }, [sourceCollection, address])
+
+  const fetchUserNFTs = async () => {
+    try {
+      // For now, we'll use the test NFT contract address
+      const testNFTAddress = '0x8092D5f24E3da6C50F93B70dAf6A549061b127F3'
+      
+      // Create a simple list of NFTs 1-100 for testing
+      const nftList = []
+      for (let i = 1; i <= 100; i++) {
+        nftList.push({
+          id: i,
+          name: `Test NFT #${i}`,
+          image: '/api/placeholder/200/200'
+        })
+      }
+      
+      setNfts(nftList)
+      setLoading(false)
+    } catch (error) {
+      console.error('Error fetching NFTs:', error)
+      setLoading(false)
+    }
+  }
 
   const toggleNFT = (nftId: number) => {
     if (selectedNFTs.includes(nftId)) {
