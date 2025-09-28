@@ -13,7 +13,12 @@ const VESTING_ABI = [
       {"name": "sourceCollection", "type": "address"},
       {"name": "templateId", "type": "uint256"},
       {"name": "tokenIds", "type": "uint256[]"},
-      {"name": "permits", "type": "tuple[]"}
+      {"name": "permits", "type": "tuple[]", "components": [
+        {"name": "tokenId", "type": "uint256"},
+        {"name": "deadline", "type": "uint256"},
+        {"name": "signature", "type": "bytes"},
+        {"name": "usePermit", "type": "bool"}
+      ]}
     ],
     "name": "createLinearPlan",
     "outputs": [{"name": "positionId", "type": "uint256"}],
@@ -120,7 +125,11 @@ const getChecksumAddress = (address: string) => {
     if (!address || address === '0x0000000000000000000000000000000000000000') {
       return getAddress('0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a')
     }
-    return getAddress(address)
+    // Clean the address by removing any whitespace/newlines
+    const cleanAddress = address.trim()
+    console.log('Original address:', JSON.stringify(address))
+    console.log('Cleaned address:', JSON.stringify(cleanAddress))
+    return getAddress(cleanAddress)
   } catch (error) {
     console.error('Error checksumming address:', address, error)
     // Return the hardcoded address if checksumming fails
