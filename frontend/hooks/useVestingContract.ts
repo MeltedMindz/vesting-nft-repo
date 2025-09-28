@@ -116,10 +116,16 @@ const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRES
 
 // Ensure the address is properly checksummed
 const getChecksumAddress = (address: string) => {
-  if (!address || address === '0x0000000000000000000000000000000000000000') {
+  try {
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      return getAddress('0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a')
+    }
+    return getAddress(address)
+  } catch (error) {
+    console.error('Error checksumming address:', address, error)
+    // Return the hardcoded address if checksumming fails
     return getAddress('0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a')
   }
-  return getAddress(address)
 }
 
 console.log('VESTING_CONTRACT_ADDRESS:', VESTING_CONTRACT_ADDRESS)
@@ -175,12 +181,14 @@ export function useVestingContract() {
     
     try {
       console.log('Calling wallet client for approval...')
+      const vestingAddress = getChecksumAddress(VESTING_CONTRACT_ADDRESS)
+      console.log('Approving for vesting contract:', vestingAddress)
       // First, try to set approval for all (more gas efficient for multiple NFTs)
       const hash = await walletClient.writeContract({
         address: nftContract as `0x${string}`,
         abi: ERC721_ABI,
         functionName: 'setApprovalForAll',
-        args: [getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`, true]
+        args: [vestingAddress as `0x${string}`, true]
       })
       console.log('Approval transaction hash:', hash)
       return hash
@@ -206,9 +214,11 @@ export function useVestingContract() {
       
       console.log('Step 2: Creating linear vesting plan...')
       console.log('Calling wallet client for createLinearPlan...')
+      const checksummedAddress = getChecksumAddress(VESTING_CONTRACT_ADDRESS)
+      console.log('Using checksummed address:', checksummedAddress)
       // Then create the linear plan
       const hash = await walletClient.writeContract({
-        address: getChecksumAddress(VESTING_CONTRACT_ADDRESS) as `0x${string}`,
+        address: checksummedAddress as `0x${string}`,
         abi: VESTING_ABI,
         functionName: 'createLinearPlan',
         args: [
