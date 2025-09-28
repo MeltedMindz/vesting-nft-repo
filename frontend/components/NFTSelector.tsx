@@ -50,11 +50,11 @@ export function NFTSelector({
   }
 
   return (
-    <div className="card">
-      <h3 className="text-lg font-semibold mb-4">Select NFTs to Vest</h3>
+    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8">
+      <h3 className="text-xl font-semibold mb-6 text-white">Select NFTs to Vest</h3>
       
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="mb-8">
+        <label className="block text-sm font-medium text-slate-300 mb-3">
           Source Collection Address
         </label>
         <input
@@ -62,18 +62,18 @@ export function NFTSelector({
           value={sourceCollection}
           onChange={(e) => setSourceCollection(e.target.value)}
           placeholder="0x..."
-          className="input"
+          className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
         />
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-slate-400 mt-2">
           Enter the contract address of the NFT collection you want to vest
         </p>
       </div>
 
       {sourceCollection && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium">Your NFTs</h4>
-            <span className="text-sm text-gray-500">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="font-medium text-white text-lg">Your NFTs</h4>
+            <span className="text-sm text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
               {selectedNFTs.length} selected
             </span>
           </div>
@@ -88,21 +88,21 @@ export function NFTSelector({
                 <div
                   key={nft.id}
                   onClick={() => toggleNFT(nft.id)}
-                  className={`relative cursor-pointer rounded-lg border-2 transition-all ${
+                  className={`relative cursor-pointer rounded-2xl border-2 transition-all duration-200 ${
                     selectedNFTs.includes(nft.id)
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-lg shadow-purple-500/25'
+                      : 'border-slate-600 hover:border-slate-500 bg-slate-700/30 hover:bg-slate-700/50'
                   }`}
                 >
-                  <div className="aspect-square rounded-t-lg bg-gray-100 flex items-center justify-center">
-                    <Image className="h-12 w-12 text-gray-400" />
+                  <div className="aspect-square rounded-t-2xl bg-slate-600 flex items-center justify-center">
+                    <Image className="h-12 w-12 text-slate-400" />
                   </div>
-                  <div className="p-3">
-                    <h5 className="font-medium text-sm truncate">{nft.name}</h5>
-                    <p className="text-xs text-gray-500">Token #{nft.id}</p>
+                  <div className="p-4">
+                    <h5 className="font-medium text-sm truncate text-white">{nft.name}</h5>
+                    <p className="text-xs text-slate-400">Token #{nft.id}</p>
                   </div>
                   {selectedNFTs.includes(nft.id) && (
-                    <div className="absolute top-2 right-2 bg-primary-600 text-white rounded-full p-1">
+                    <div className="absolute top-3 right-3 bg-purple-500 text-white rounded-full p-2 shadow-lg">
                       <Check className="h-4 w-4" />
                     </div>
                   )}
@@ -112,18 +112,18 @@ export function NFTSelector({
           )}
 
           {selectedNFTs.length > 0 && (
-            <div className="mt-4 p-4 bg-primary-50 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <Plus className="h-4 w-4 text-primary-600" />
-                <span className="font-medium text-primary-900">
+            <div className="mt-6 p-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-2xl">
+              <div className="flex items-center space-x-3 mb-4">
+                <Plus className="h-5 w-5 text-purple-400" />
+                <span className="font-medium text-white text-lg">
                   Selected NFTs: {selectedNFTs.length}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {selectedNFTs.map((id) => (
                   <span
                     key={id}
-                    className="px-2 py-1 bg-primary-100 text-primary-800 text-xs rounded-full"
+                    className="px-3 py-2 bg-purple-500/20 text-purple-300 text-sm rounded-full border border-purple-500/30"
                   >
                     #{id}
                   </span>

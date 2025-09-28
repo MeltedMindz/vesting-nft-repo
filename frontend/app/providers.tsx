@@ -1,6 +1,6 @@
 'use client'
 
-import { WagmiProvider, createConfig, http } from 'wagmi'
+import { WagmiProvider } from 'wagmi'
 import { mainnet, base, baseSepolia } from 'wagmi/chains'
 import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -10,11 +10,6 @@ const config = getDefaultConfig({
   appName: 'Vesting NFT Platform',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
   chains: [mainnet, base, baseSepolia],
-  transports: {
-    [mainnet.id]: http(),
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
-  },
 })
 
 const queryClient = new QueryClient()
