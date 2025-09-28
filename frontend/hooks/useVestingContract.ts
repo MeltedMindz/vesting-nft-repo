@@ -165,12 +165,8 @@ export function useVestingContract() {
       })
       console.log('Approval transaction submitted:', approvalResult)
       
-      // Wait for the approval transaction to be confirmed
-      if (approvalResult) {
-        console.log('Waiting for approval transaction confirmation...')
-        // The transaction is submitted, but we should wait for confirmation
-        // For now, we'll just log and continue
-      }
+      // The transaction is submitted
+      console.log('Approval transaction submitted successfully')
     } catch (error) {
       console.error('Error setting approval for all:', error)
       throw error
