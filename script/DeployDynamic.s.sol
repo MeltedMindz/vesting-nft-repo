@@ -21,10 +21,10 @@ contract DeployDynamicScript is Script {
 
         // Deploy the enhanced contract with dynamic metadata
         Vesting721Of721PlusDynamic vesting = new Vesting721Of721PlusDynamic(
-            "Vesting NFT Positions", // name
-            "VEST",                  // symbol
+            "Vesting NFT Positions Dynamic", // name
+            "VESTD",                          // symbol
             "https://vesting-nft.app/metadata/", // base URI
-            true                     // use onchain metadata
+            true                              // use onchain metadata
         );
 
         console.log("Vesting721Of721PlusDynamic deployed at:", address(vesting));
