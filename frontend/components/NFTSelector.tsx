@@ -58,15 +58,15 @@ export function NFTSelector({
       // For now, we'll use the test NFT contract address
       const testNFTAddress = '0x8092D5f24E3da6C50F93B70dAf6A549061b127F3'
       
-      // Create a simple list of NFTs 1-100 for testing
-      const nftList = []
-      for (let i = 1; i <= 100; i++) {
-        nftList.push({
-          id: i,
-          name: `Test NFT #${i}`,
-          image: '/api/placeholder/200/200'
-        })
-      }
+          // Create a simple list of NFTs 1-300 for testing (now we have 300 total)
+          const nftList = []
+          for (let i = 1; i <= 300; i++) {
+            nftList.push({
+              id: i,
+              name: `Test NFT #${i}`,
+              image: '/api/placeholder/200/200'
+            })
+          }
       
       setNfts(nftList)
       setLoading(false)
@@ -207,12 +207,24 @@ export function NFTSelector({
                   >
                     41-50
                   </button>
-                  <button
-                    onClick={() => selectRange(51, 100)}
-                    className="px-3 py-1 text-xs bg-green-500/20 text-green-300 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors"
-                  >
-                    51-100
-                  </button>
+                      <button
+                        onClick={() => selectRange(51, 100)}
+                        className="px-3 py-1 text-xs bg-green-500/20 text-green-300 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors"
+                      >
+                        51-100
+                      </button>
+                      <button
+                        onClick={() => selectRange(101, 200)}
+                        className="px-3 py-1 text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors"
+                      >
+                        101-200
+                      </button>
+                      <button
+                        onClick={() => selectRange(201, 300)}
+                        className="px-3 py-1 text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 rounded-lg hover:bg-pink-500/30 transition-colors"
+                      >
+                        201-300
+                      </button>
                 </div>
               </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

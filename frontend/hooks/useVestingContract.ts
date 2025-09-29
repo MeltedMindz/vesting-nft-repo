@@ -152,8 +152,8 @@ const ERC721_ABI = [
   }
 ] as const
 
-// Contract address - you would set this based on your deployment
-const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a'
+// Contract address - Dynamic version deployed and verified on BaseScan
+const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS || '0xceAbAA1d992681A7A4F0923Ff21d3Cc1B5201688'
 
 // Ensure the address is properly checksummed
 const getChecksumAddress = (address: string) => {
@@ -168,8 +168,8 @@ const getChecksumAddress = (address: string) => {
     return getAddress(cleanAddress)
   } catch (error) {
     console.error('Error checksumming address:', address, error)
-    // Return the hardcoded address if checksumming fails
-    return getAddress('0xe07547e2F31F5Ea2aaeD04586DB6562c17c35d5a')
+        // Return the hardcoded address if checksumming fails
+        return getAddress('0xceAbAA1d992681A7A4F0923Ff21d3Cc1B5201688')
   }
 }
 
