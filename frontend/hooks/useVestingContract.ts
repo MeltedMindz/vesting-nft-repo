@@ -493,9 +493,15 @@ export function useVestingContract() {
 
       console.log('User has', Number(balance), 'vesting positions')
 
-      // Since tokenOfOwnerByIndex doesn't exist, we'll iterate through position IDs
-      // and check ownership directly. Start with a reasonable range (1-100)
-      for (let positionId = 1; positionId <= 100; positionId++) {
+      if (Number(balance) === 0) {
+        return []
+      }
+
+      // Since we know the user has positions, let's try a more targeted approach
+      // We'll check a smaller range first, then expand if needed
+      const maxPositionsToCheck = Math.min(Number(balance) * 2, 20) // Check up to 20 positions max
+      
+      for (let positionId = 1; positionId <= maxPositionsToCheck; positionId++) {
         try {
           // Check if user owns this position NFT
           const owner = await publicClient.readContract({
@@ -551,6 +557,11 @@ export function useVestingContract() {
         } catch (error) {
           // Position doesn't exist or user doesn't own it, continue
           continue
+        }
+        
+        // Add a small delay between calls to avoid rate limiting
+        if (positionId % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
       }
     } catch (error) {
